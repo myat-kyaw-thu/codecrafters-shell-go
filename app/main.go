@@ -70,6 +70,9 @@ func main() {
 				continue
 			}
 			dir := args[0]
+			if dir == "~" {
+				dir = os.Getenv("HOME")
+			}
 			err := os.Chdir(dir)
 			if err != nil {
 				fmt.Printf("cd: %s: No such file or directory\n", dir)
