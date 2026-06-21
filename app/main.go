@@ -13,6 +13,7 @@ var builtins = map[string]bool{
 	"exit": true,
 	"type": true,
 	"pwd":  true,
+	"cd":   true,
 }
 
 func findInPath(command string) string {
@@ -57,6 +58,22 @@ func main() {
 			os.Exit(0)
 		} else if command == "echo" {
 			fmt.Println(strings.Join(args, " "))
+		} else if command == "pwd" {
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			} else {
+				fmt.Println(dir)
+			}
+		} else if command == "cd" {
+			if len(args) == 0 {
+				continue
+			}
+			dir := args[0]
+			err := os.Chdir(dir)
+			if err != nil {
+				fmt.Printf("cd: %s: No such file or directory\n", dir)
+			}
 		} else if command == "type" {
 			if len(args) == 0 {
 				continue
@@ -75,15 +92,9 @@ func main() {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
-		} else if command == "pwd" {
-			dir, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			} else {
-				fmt.Println(dir)
-			}
 		} else {
 			fmt.Printf("%s: command not found\n", command)
 		}
+
 	}
 }
