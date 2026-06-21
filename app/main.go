@@ -70,6 +70,7 @@ func main() {
 			}
 		} else if path := findInPath(command); path != "" {
 			cmd := exec.Command(path, args...)
+			cmd.Args = append([]string{command}, args...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Run()
