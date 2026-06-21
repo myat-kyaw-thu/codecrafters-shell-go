@@ -20,7 +20,6 @@ func findInPath(command string) string {
 
 	for _, dir := range dirs {
 		fullPath := dir + "/" + command
-
 		info, err := os.Stat(fullPath)
 		if err != nil {
 			continue
@@ -46,7 +45,6 @@ func main() {
 		input = strings.TrimSpace(input)
 
 		parts := strings.Fields(input)
-
 		if len(parts) == 0 {
 			continue
 		}
@@ -54,13 +52,15 @@ func main() {
 		command := parts[0]
 		args := parts[1:]
 
-		if input == "exit" {
+		if command == "exit" {
 			os.Exit(0)
-		} else if strings.HasPrefix(input, "echo ") {
-			message := strings.TrimPrefix(input, "echo ")
-			fmt.Println(message)
-		} else if strings.HasPrefix(input, "type ") {
-			arg := strings.TrimPrefix(input, "type ")
+		} else if command == "echo" {
+			fmt.Println(strings.Join(args, " "))
+		} else if command == "type" {
+			if len(args) == 0 {
+				continue
+			}
+			arg := args[0]
 			if builtins[arg] {
 				fmt.Printf("%s is a shell builtin\n", arg)
 			} else if path := findInPath(arg); path != "" {
@@ -74,7 +74,7 @@ func main() {
 			cmd.Stderr = os.Stderr
 			cmd.Run()
 		} else {
-			fmt.Printf("%s: command not found\n", input)
+			fmt.Printf("%s: command not found\n", command)
 		}
 	}
 }
