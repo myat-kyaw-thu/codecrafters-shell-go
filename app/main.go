@@ -13,6 +13,24 @@ var builtins = map[string]bool{
 	"type": true,
 }
 
+func findInPath(command string) string {
+	pathEnv := os.Getenv("PATH")
+	dirs := strings.Split(pathEnv, ":")
+
+	for _, dir := range dirs {
+		fullPath := dir + "/" + command
+
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue
+		}
+		if info.Mode()&0111 != 0 {
+			return fullPath
+		}
+	}
+	return ""
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -35,6 +53,8 @@ func main() {
 			arg := strings.TrimPrefix(input, "type ")
 			if builtins[arg] {
 				fmt.Printf("%s is a shell builtin\n", arg)
+			} else if path := findInPath(arg); path != "" {
+				fmt.Printf("%s is %s\n", arg, path)
 			} else {
 				fmt.Printf("%s: not found\n", arg)
 			}
