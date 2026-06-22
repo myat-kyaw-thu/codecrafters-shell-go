@@ -217,12 +217,21 @@ func parseArgs(input string) []string {
 }
 
 func main() {
+	completions := []string{"echo", "exit", "type", "pwd", "cd"}
+
 	completer := readline.NewPrefixCompleter(
-		readline.PcItem("echo"),
-		readline.PcItem("exit"),
-		readline.PcItem("type"),
-		readline.PcItem("pwd"),
-		readline.PcItem("cd"),
+		readline.PcItemDynamic(func(line string) []string {
+			var matches []string
+			for _, c := range completions {
+				if strings.HasPrefix(c, line) {
+					matches = append(matches, c)
+				}
+			}
+			if len(matches) == 0 {
+				fmt.Fprint(os.Stderr, "\x07")
+			}
+			return matches
+		}),
 	)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "$ ",
