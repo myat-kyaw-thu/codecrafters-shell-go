@@ -49,7 +49,16 @@ func extractRedirect(parts []string) ([]string, redirect) {
 }
 
 func runBuiltin(command string, args []string, r redirect) {
-	var out *os.File = os.Stdout
+	out := os.Stdout
+	if r.stdoutFile != "" {
+		f, err := os.Create(r.stdoutFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		defer f.Close()
+		out = f
+	}
 	errOut := os.Stderr
 	if r.stderrFile != "" {
 		f, err := os.Create(r.stderrFile)
