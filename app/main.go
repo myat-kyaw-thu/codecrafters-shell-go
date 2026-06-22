@@ -1,11 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 type redirect struct {
@@ -216,12 +217,27 @@ func parseArgs(input string) []string {
 }
 
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+	completer := readline.NewPrefixCompleter(
+		readline.PcItem("echo"),
+		readline.PcItem("exit"),
+		readline.PcItem("type"),
+		readline.PcItem("pwd"),
+		readline.PcItem("cd"),
+	)
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:       "$ ",
+		AutoComplete: completer,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer rl.Close()
 
 	for {
 		fmt.Print("$ ")
 
-		input, err := reader.ReadString('\n')
+		input, err := rl.Readline()
 		if err != nil {
 			os.Exit(0)
 		}
