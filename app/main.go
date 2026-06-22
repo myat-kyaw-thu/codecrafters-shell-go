@@ -17,20 +17,100 @@ var builtins = map[string]bool{
 }
 
 func findInPath(command string) string {
-	pathEnv := os.Getenv("PATH")
-	dirs := strings.Split(pathEnv, ":")
-
-	for _, dir := range dirs {
+	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
 		fullPath := dir + "/" + command
-		info, err := os.Stat(fullPath)
-		if err != nil {
-			continue
-		}
-		if info.Mode()&0111 != 0 {
+		if info, err := os.Stat(fullPath); err == nil && info.Mode()&0111 != 0 {
 			return fullPath
 		}
 	}
 	return ""
+}
+
+func runBuiltin(command string, args []string) {
+	switch command {
+	case "exit":
+		os.Exit(0)
+
+	case "echo":
+		fmt.Println(strings.Join(args, " "))
+
+	case "pwd":
+		if dir, err := os.Getwd(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Println(dir)
+		}
+
+	case "cd":
+		if len(args) == 0 {
+			return
+		}
+		dir := args[0]
+		if dir == "~" {
+			dir = os.Getenv("HOME")
+		}
+		if err := os.Chdir(dir); err != nil {
+			fmt.Printf("cd: %s: No such file or directory\n", dir)
+		}
+
+	case "type":
+		if len(args) == 0 {
+			return
+		}
+		arg := args[0]
+		switch {
+		case builtins[arg]:
+			fmt.Printf("%s is a shell builtin\n", arg)
+		case findInPath(arg) != "":
+			fmt.Printf("%s is %s\n", arg, findInPath(arg))
+		default:
+			fmt.Printf("%s: not found\n", arg)
+		}
+	}
+}
+
+func runExternal(command string, args []string) {
+	path := findInPath(command)
+	if path == "" {
+		fmt.Printf("%s: command not found\n", command)
+		return
+	}
+	cmd := exec.Command(path, args...)
+	cmd.Args = append([]string{command}, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+}
+
+func parseArgs(input string) []string {
+	var args []string
+	var current strings.Builder
+	inSingle := false
+
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+		switch {
+		case inSingle:
+			if ch == '\'' {
+				inSingle = false
+			} else {
+				current.WriteByte(ch)
+			}
+		case ch == '\'':
+			inSingle = true
+		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteByte(ch)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
 }
 
 func main() {
@@ -44,60 +124,17 @@ func main() {
 			os.Exit(0)
 		}
 
-		input = strings.TrimSpace(input)
-
-		parts := strings.Fields(input)
+		parts := parseArgs(input)
 		if len(parts) == 0 {
 			continue
 		}
 
-		command := parts[0]
-		args := parts[1:]
+		command, args := parts[0], parts[1:]
 
-		if command == "exit" {
-			os.Exit(0)
-		} else if command == "echo" {
-			fmt.Println(strings.Join(args, " "))
-		} else if command == "pwd" {
-			dir, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			} else {
-				fmt.Println(dir)
-			}
-		} else if command == "cd" {
-			if len(args) == 0 {
-				continue
-			}
-			dir := args[0]
-			if dir == "~" {
-				dir = os.Getenv("HOME")
-			}
-			err := os.Chdir(dir)
-			if err != nil {
-				fmt.Printf("cd: %s: No such file or directory\n", dir)
-			}
-		} else if command == "type" {
-			if len(args) == 0 {
-				continue
-			}
-			arg := args[0]
-			if builtins[arg] {
-				fmt.Printf("%s is a shell builtin\n", arg)
-			} else if path := findInPath(arg); path != "" {
-				fmt.Printf("%s is %s\n", arg, path)
-			} else {
-				fmt.Printf("%s: not found\n", arg)
-			}
-		} else if path := findInPath(command); path != "" {
-			cmd := exec.Command(path, args...)
-			cmd.Args = append([]string{command}, args...)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Run()
+		if builtins[command] {
+			runBuiltin(command, args)
 		} else {
-			fmt.Printf("%s: command not found\n", command)
+			runExternal(command, args)
 		}
-
 	}
 }
