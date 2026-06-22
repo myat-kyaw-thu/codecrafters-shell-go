@@ -10,6 +10,7 @@ import (
 
 type redirect struct {
 	stdoutFile string
+	stderrFile string
 }
 
 var builtins = map[string]bool{
@@ -37,6 +38,9 @@ func extractRedirect(parts []string) ([]string, redirect) {
 		if (parts[i] == ">" || parts[i] == "1>") && i+1 < len(parts) {
 			r.stdoutFile = parts[i+1]
 			i++ // skip the filename token
+		} else if parts[i] == "2>" && i+1 < len(parts) {
+			r.stderrFile = parts[i+1]
+			i++
 		} else {
 			filtered = append(filtered, parts[i])
 		}
@@ -46,14 +50,15 @@ func extractRedirect(parts []string) ([]string, redirect) {
 
 func runBuiltin(command string, args []string, r redirect) {
 	var out *os.File = os.Stdout
-	if r.stdoutFile != "" {
-		f, err := os.Create(r.stdoutFile)
+	errOut := os.Stderr
+	if r.stderrFile != "" {
+		f, err := os.Create(r.stderrFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		defer f.Close()
-		out = f
+		errOut = f
 	}
 
 	switch command {
@@ -63,7 +68,7 @@ func runBuiltin(command string, args []string, r redirect) {
 		fmt.Fprintln(out, strings.Join(args, " "))
 	case "pwd":
 		if dir, err := os.Getwd(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(errOut, err)
 		} else {
 			fmt.Fprintln(out, dir)
 		}
@@ -76,7 +81,7 @@ func runBuiltin(command string, args []string, r redirect) {
 			dir = os.Getenv("HOME")
 		}
 		if err := os.Chdir(dir); err != nil {
-			fmt.Printf("cd: %s: No such file or directory\n", dir)
+			fmt.Fprintf(errOut, "cd: %s: No such file or directory\n", dir)
 		}
 	case "type":
 		if len(args) == 0 {
@@ -105,15 +110,15 @@ func runExternal(command string, args []string, r redirect) {
 	cmd.Stderr = os.Stderr
 
 	if r.stdoutFile != "" {
-		f, err := os.Create(r.stdoutFile)
+		f, err := os.Create(r.stderrFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		defer f.Close()
-		cmd.Stdout = f
+		cmd.Stderr = f
 	} else {
-		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
 	cmd.Run()
 }
