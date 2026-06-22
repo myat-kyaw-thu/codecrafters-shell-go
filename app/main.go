@@ -104,6 +104,9 @@ func parseArgs(input string) []string {
 		case inDouble:
 			if ch == '"' {
 				inDouble = false
+			} else if ch == '\\' && i+1 < len(input) && (input[i+1] == '"' || input[i+1] == '\\') {
+				i++
+				current.WriteByte(input[i])
 			} else {
 				current.WriteByte(ch)
 			}
