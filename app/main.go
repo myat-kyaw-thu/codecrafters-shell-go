@@ -275,7 +275,11 @@ func runBuiltin(command string, args []string, r redirect) {
 		if err := os.Chdir(dir); err != nil {
 			fmt.Fprintf(errOut, "cd: %s: No such file or directory\n", dir)
 		}
-	case "type":
+	case "complete":
+		if len(args) >= 2 && args[0] == "-p" {
+			fmt.Fprintf(errOut, "complete: %s: no completion specification\n", args[1])
+		}
+
 		if len(args) == 0 {
 			return
 		}
