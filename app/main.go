@@ -222,8 +222,24 @@ func main() {
 	completer := readline.NewPrefixCompleter(
 		readline.PcItemDynamic(func(line string) []string {
 			var matches []string
-			for _, c := range completions {
-				if strings.HasPrefix(c, line) {
+			seen := map[string]bool{}
+			all := append([]string{}, completions...)
+
+			for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
+				entries, err := os.ReadDir(dir)
+				if err != nil {
+					continue
+				}
+				for _, e := range entries {
+					if !e.IsDir() {
+						all = append(all, e.Name())
+					}
+				}
+			}
+
+			for _, c := range all {
+				if strings.HasPrefix(c, line) && !seen[c] {
+					seen[c] = true
 					matches = append(matches, c)
 				}
 			}
