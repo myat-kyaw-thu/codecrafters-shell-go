@@ -357,6 +357,8 @@ func runBuiltin(command string, args []string, r redirect) {
 			} else {
 				fmt.Fprintf(errOut, "complete: %s: no completion specification\n", cmd)
 			}
+		} else if len(args) >= 2 && args[0] == "-r" {
+			delete(completionSpecs, args[1])
 		} else if len(args) >= 3 && args[0] == "-C" {
 			completionSpecs[args[2]] = args[1]
 		}
