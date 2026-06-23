@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -14,6 +15,64 @@ type redirect struct {
 	stdoutAppend bool
 	stderrFile   string
 	stderrAppend bool
+}
+type tabCompleter struct {
+	builtins  []string
+	lastInput string
+	lastCount int
+}
+
+func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
+	input := string(line[:pos])
+
+	seen := map[string]bool{}
+	all := append([]string{}, t.builtins...)
+	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				all = append(all, e.Name())
+			}
+		}
+	}
+
+	var matches []string
+	for _, c := range all {
+		if strings.HasPrefix(c, input) && !seen[c] {
+			seen[c] = true
+			matches = append(matches, c)
+		}
+	}
+	sort.Strings(matches)
+
+	if len(matches) == 0 {
+		fmt.Fprint(os.Stderr, "\x07")
+		return nil, 0
+	}
+
+	if len(matches) == 1 {
+		completion := matches[0][len(input):]
+		return [][]rune{[]rune(completion + " ")}, len(input)
+	}
+
+	if t.lastInput == input {
+		t.lastCount++
+	} else {
+		t.lastInput = input
+		t.lastCount = 1
+	}
+
+	if t.lastCount == 1 {
+		fmt.Fprint(os.Stderr, "\x07")
+		return nil, 0
+	}
+
+	fmt.Fprintf(os.Stdout, "\n%s\n", strings.Join(matches, "  "))
+	t.lastCount = 0
+	return nil, 0
 }
 
 var builtins = map[string]bool{
@@ -219,36 +278,8 @@ func parseArgs(input string) []string {
 func main() {
 	completions := []string{"echo", "exit", "type", "pwd", "cd"}
 
-	completer := readline.NewPrefixCompleter(
-		readline.PcItemDynamic(func(line string) []string {
-			var matches []string
-			seen := map[string]bool{}
-			all := append([]string{}, completions...)
+	completer := &tabCompleter{builtins: completions}
 
-			for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
-				entries, err := os.ReadDir(dir)
-				if err != nil {
-					continue
-				}
-				for _, e := range entries {
-					if !e.IsDir() {
-						all = append(all, e.Name())
-					}
-				}
-			}
-
-			for _, c := range all {
-				if strings.HasPrefix(c, line) && !seen[c] {
-					seen[c] = true
-					matches = append(matches, c)
-				}
-			}
-			if len(matches) == 0 {
-				fmt.Fprint(os.Stderr, "\x07")
-			}
-			return matches
-		}),
-	)
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "$ ",
 		AutoComplete: completer,
