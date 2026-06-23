@@ -58,6 +58,20 @@ func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		return [][]rune{[]rune(completion + " ")}, len(input)
 	}
 
+	lcp := matches[0]
+	for _, m := range matches[1:] {
+		for !strings.HasPrefix(m, lcp) {
+			lcp = lcp[:len(lcp)-1]
+		}
+	}
+
+	if len(lcp) > len(input) {
+		completion := lcp[len(input):]
+		t.lastInput = lcp
+		t.lastCount = 0
+		return [][]rune{[]rune(completion)}, len(input)
+	}
+
 	if t.lastInput == input {
 		t.lastCount++
 	} else {
