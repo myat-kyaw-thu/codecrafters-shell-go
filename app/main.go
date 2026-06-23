@@ -25,6 +25,28 @@ type tabCompleter struct {
 func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	input := string(line[:pos])
 
+	if strings.Contains(input, " ") {
+		prefix := input[strings.LastIndex(input, " ")+1:]
+		entries, err := os.ReadDir(".")
+		if err != nil {
+			return nil, 0
+		}
+		var matches []string
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), prefix) {
+				matches = append(matches, e.Name())
+			}
+		}
+		if len(matches) == 1 {
+			completion := matches[0][len(prefix):]
+			return [][]rune{[]rune(completion + " ")}, len(prefix)
+		}
+		if len(matches) == 0 {
+			fmt.Fprint(os.Stderr, "\x07")
+		}
+		return nil, 0
+	}
+
 	seen := map[string]bool{}
 	all := append([]string{}, t.builtins...)
 	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
