@@ -27,19 +27,27 @@ func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 
 	if strings.Contains(input, " ") {
 		prefix := input[strings.LastIndex(input, " ")+1:]
-		entries, err := os.ReadDir(".")
+
+		dir := "."
+		filePrefix := prefix
+		if idx := strings.LastIndex(prefix, "/"); idx >= 0 {
+			dir = prefix[:idx+1]
+			filePrefix = prefix[idx+1:]
+		}
+
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return nil, 0
 		}
 		var matches []string
 		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), prefix) {
+			if strings.HasPrefix(e.Name(), filePrefix) {
 				matches = append(matches, e.Name())
 			}
 		}
 		if len(matches) == 1 {
-			completion := matches[0][len(prefix):]
-			return [][]rune{[]rune(completion + " ")}, len(prefix)
+			completion := matches[0][len(filePrefix):]
+			return [][]rune{[]rune(completion + " ")}, len(filePrefix)
 		}
 		if len(matches) == 0 {
 			fmt.Fprint(os.Stderr, "\x07")
