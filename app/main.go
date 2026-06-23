@@ -28,6 +28,31 @@ func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	if strings.Contains(input, " ") {
 		prefix := input[strings.LastIndex(input, " ")+1:]
 
+		cmdName := strings.Fields(input)[0]
+		if scriptPath, ok := completionSpecs[cmdName]; ok {
+			fields := strings.Fields(input)
+			prevWord := ""
+			if len(fields) >= 2 {
+				prevWord = fields[len(fields)-1]
+				if !strings.HasSuffix(input, " ") {
+					if len(fields) >= 3 {
+						prevWord = fields[len(fields)-2]
+					} else {
+						prevWord = cmdName
+					}
+				}
+			}
+			out, err := exec.Command(scriptPath, cmdName, prefix, prevWord).Output()
+			if err == nil {
+				candidate := strings.TrimSpace(string(out))
+				if candidate != "" {
+					return [][]rune{[]rune(candidate[len(prefix):] + " ")}, len(prefix)
+				}
+			}
+			fmt.Fprint(os.Stdout, "\x07")
+			return nil, 0
+		}
+
 		dir := "."
 		filePrefix := prefix
 		if idx := strings.LastIndex(prefix, "/"); idx >= 0 {
@@ -184,6 +209,8 @@ var builtins = map[string]bool{
 	"complete": true,
 }
 
+var completionSpecs = map[string]string{}
+
 func findInPath(command string) string {
 	for _, dir := range strings.Split(os.Getenv("PATH"), ":") {
 		fullPath := dir + "/" + command
@@ -277,7 +304,14 @@ func runBuiltin(command string, args []string, r redirect) {
 		}
 	case "complete":
 		if len(args) >= 2 && args[0] == "-p" {
-			fmt.Fprintf(errOut, "complete: %s: no completion specification\n", args[1])
+			cmd := args[1]
+			if path, ok := completionSpecs[cmd]; ok {
+				fmt.Fprintf(out, "complete -C '%s' %s\n", path, cmd)
+			} else {
+				fmt.Fprintf(errOut, "complete: %s: no completion specification\n", cmd)
+			}
+		} else if len(args) >= 3 && args[0] == "-C" {
+			completionSpecs[args[2]] = args[1]
 		}
 
 	case "type":
