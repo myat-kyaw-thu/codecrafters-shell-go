@@ -42,7 +42,12 @@ func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 					}
 				}
 			}
-			out, err := exec.Command(scriptPath, cmdName, prefix, prevWord).Output()
+			cmd := exec.Command(scriptPath, cmdName, prefix, prevWord)
+			cmd.Env = append(os.Environ(),
+				"COMP_LINE="+input,
+				fmt.Sprintf("COMP_POINT=%d", len(input)),
+			)
+			out, err := cmd.Output()
 			if err == nil {
 				candidate := strings.TrimSpace(string(out))
 				if candidate != "" {
