@@ -65,6 +65,20 @@ func (t *tabCompleter) Do(line []rune, pos int) (newLine [][]rune, length int) {
 						return [][]rune{[]rune(candidates[0][len(prefix):] + " ")}, len(prefix)
 					}
 
+					lcp := candidates[0]
+					for _, c := range candidates[1:] {
+						for !strings.HasPrefix(c, lcp) {
+							lcp = lcp[:len(lcp)-1]
+						}
+					}
+
+					if len(lcp) > len(prefix) {
+						completion := lcp[len(prefix):]
+						t.lastInput = input[:strings.LastIndex(input, " ")+1] + lcp
+						t.lastCount = 0
+						return [][]rune{[]rune(completion)}, len(prefix)
+					}
+
 					if t.lastInput == input {
 						t.lastCount++
 					} else {
