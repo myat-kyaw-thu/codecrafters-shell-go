@@ -542,6 +542,8 @@ func runPipeline(segments []string) {
 		pipes[i] = w
 	}
 
+	var extCmds []*exec.Cmd
+
 	for i, seg := range segments {
 		parts := parseArgs(seg)
 		if len(parts) == 0 {
@@ -568,12 +570,14 @@ func runPipeline(segments []string) {
 			oldStdout := os.Stdout
 			os.Stdin = stdin
 			os.Stdout = stdout
-			r := redirect{}
-			runBuiltin(parts[0], parts[1:], r)
+			runBuiltin(parts[0], parts[1:], redirect{})
 			os.Stdin = oldStdin
 			os.Stdout = oldStdout
 			if i < n-1 {
 				pipes[i].Close()
+			}
+			if i > 0 {
+				pipeReaders[i-1].Close()
 			}
 		} else {
 			path := findInPath(parts[0])
@@ -593,19 +597,22 @@ func runPipeline(segments []string) {
 				fmt.Fprintln(os.Stderr, err)
 				continue
 			}
+			extCmds = append(extCmds, cmd)
 			if i < n-1 {
 				pipes[i].Close()
 			}
-			go func(c *exec.Cmd) { c.Wait() }(cmd)
-		}
-
-		if i > 0 {
-			pipeReaders[i-1].Close()
+			if i > 0 {
+				pipeReaders[i-1].Close()
+			}
 		}
 	}
 
 	for _, r := range pipeReaders {
 		r.Close()
+	}
+
+	for _, cmd := range extCmds {
+		cmd.Wait()
 	}
 }
 
