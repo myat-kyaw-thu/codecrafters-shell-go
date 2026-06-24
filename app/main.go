@@ -405,7 +405,15 @@ func runBuiltin(command string, args []string, r redirect) {
 			if idx := strings.Index(arg, "="); idx != -1 {
 				name := arg[:idx]
 				val := arg[idx+1:]
-				shellVariables[name] = val
+				if isValidIdentifier(name) {
+					shellVariables[name] = val
+				} else {
+					fmt.Fprintf(errOut, "declare: `%s': not a valid identifier\n", arg)
+				}
+			} else {
+				if !isValidIdentifier(arg) {
+					fmt.Fprintf(errOut, "declare: `%s': not a valid identifier\n", arg)
+				}
 			}
 		}
 		return
