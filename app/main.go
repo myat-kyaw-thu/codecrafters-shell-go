@@ -769,12 +769,64 @@ func runPipeline(segments []string) {
 	}
 }
 
+func isLetter(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+func isDigit(ch byte) bool {
+	return ch >= '0' && ch <= '9'
+}
+
+func expandVar(input string, i int, _ bool, wordStarted *bool, current *strings.Builder) int {
+	if i+1 < len(input) && input[i+1] == '{' {
+		k := strings.IndexByte(input[i+2:], '}')
+		if k != -1 {
+			k += i + 2
+			varName := input[i+2 : k]
+			varVal := ""
+			if val, ok := shellVariables[varName]; ok {
+				varVal = val
+			} else {
+				varVal = os.Getenv(varName)
+			}
+			if len(varVal) > 0 {
+				*wordStarted = true
+			}
+			current.WriteString(varVal)
+			return k
+		}
+	} else if i+1 < len(input) && (isLetter(input[i+1]) || input[i+1] == '_') {
+		j := i + 1
+		for j < len(input) && (isLetter(input[j]) || isDigit(input[j]) || input[j] == '_') {
+			j++
+		}
+		varName := input[i+1 : j]
+		varVal := ""
+		if val, ok := shellVariables[varName]; ok {
+			varVal = val
+		} else {
+			varVal = os.Getenv(varName)
+		}
+		if len(varVal) > 0 {
+			*wordStarted = true
+		}
+		current.WriteString(varVal)
+		return j - 1
+	}
+
+	// Literal '$'
+	*wordStarted = true
+	current.WriteByte('$')
+	return i
+}
+
 func parseArgs(input string) []string {
 	var args []string
 	var current strings.Builder
 	inSingle := false
 	inDouble := false
 	escaped := false
+	wordStarted := false
 
 	for i := 0; i < len(input); i++ {
 		ch := input[i]
@@ -782,6 +834,7 @@ func parseArgs(input string) []string {
 		case escaped:
 			current.WriteByte(ch)
 			escaped = false
+			wordStarted = true
 		case inSingle:
 			if ch == '\'' {
 				inSingle = false
@@ -791,28 +844,39 @@ func parseArgs(input string) []string {
 		case inDouble:
 			if ch == '"' {
 				inDouble = false
-			} else if ch == '\\' && i+1 < len(input) && (input[i+1] == '"' || input[i+1] == '\\') {
+			} else if ch == '\\' && i+1 < len(input) && (input[i+1] == '"' || input[i+1] == '\\' || input[i+1] == '$') {
 				i++
 				current.WriteByte(input[i])
+			} else if ch == '$' {
+				i = expandVar(input, i, inDouble, &wordStarted, &current)
 			} else {
 				current.WriteByte(ch)
 			}
 		case ch == '\\':
 			escaped = true
+			wordStarted = true
 		case ch == '\'':
 			inSingle = true
+			wordStarted = true
 		case ch == '"':
 			inDouble = true
+			wordStarted = true
 		case ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r':
-			if current.Len() > 0 {
+			if wordStarted {
 				args = append(args, current.String())
 				current.Reset()
+				wordStarted = false
 			}
 		default:
-			current.WriteByte(ch)
+			if ch == '$' {
+				i = expandVar(input, i, inDouble, &wordStarted, &current)
+			} else {
+				current.WriteByte(ch)
+				wordStarted = true
+			}
 		}
 	}
-	if current.Len() > 0 {
+	if wordStarted {
 		args = append(args, current.String())
 	}
 	return args
