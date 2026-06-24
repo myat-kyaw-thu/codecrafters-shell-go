@@ -257,6 +257,15 @@ var builtins = map[string]bool{
 	"jobs":     true,
 }
 
+type job struct {
+	id      int
+	pid     int
+	command string
+	status  string
+}
+
+var jobList []*job
+
 var jobCounter = 1
 
 var completionSpecs = map[string]string{}
@@ -367,7 +376,13 @@ func runBuiltin(command string, args []string, r redirect) {
 		}
 
 	case "jobs":
-		
+		for _, j := range jobList {
+			marker := " "
+			if j.id == jobCounter-1 {
+				marker = "+"
+			}
+			fmt.Fprintf(out, "[%d]%s  %-24s%s\n", j.id, marker, j.status, j.command)
+		}
 
 	case "type":
 		if len(args) == 0 {
@@ -385,7 +400,7 @@ func runBuiltin(command string, args []string, r redirect) {
 	}
 }
 
-func runExternal(command string, args []string, r redirect, background bool) {
+func runExternal(command string, args []string, r redirect, background bool, rawCmd string) {
 	path := findInPath(command)
 	if path == "" {
 		fmt.Printf("%s: command not found\n", command)
@@ -424,6 +439,13 @@ func runExternal(command string, args []string, r redirect, background bool) {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
+		j := &job{
+			id:      jobCounter,
+			pid:     cmd.Process.Pid,
+			command: rawCmd,
+			status:  "Running",
+		}
+		jobList = append(jobList, j)
 		fmt.Printf("[%d] %d\n", jobCounter, cmd.Process.Pid)
 		jobCounter++
 		go cmd.Wait()
@@ -525,10 +547,12 @@ func main() {
 
 		command, args := parts[0], parts[1:]
 
+		rawCmd := input
+
 		if builtins[command] {
 			runBuiltin(command, args, r)
 		} else {
-			runExternal(command, args, r, background)
+			runExternal(command, args, r, background, rawCmd)
 		}
 
 	}
