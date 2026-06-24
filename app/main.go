@@ -254,6 +254,7 @@ var builtins = map[string]bool{
 	"pwd":      true,
 	"cd":       true,
 	"complete": true,
+	"jobs":     true,
 }
 
 var completionSpecs = map[string]string{}
@@ -363,6 +364,9 @@ func runBuiltin(command string, args []string, r redirect) {
 			completionSpecs[args[2]] = args[1]
 		}
 
+	case "jobs":
+		
+
 	case "type":
 		if len(args) == 0 {
 			return
@@ -465,7 +469,7 @@ func parseArgs(input string) []string {
 }
 
 func main() {
-	completions := []string{"echo", "exit", "type", "pwd", "cd", "complete"}
+	completions := []string{"echo", "exit", "type", "pwd", "cd", "complete", "jobs"}
 
 	completer := &tabCompleter{builtins: completions}
 
