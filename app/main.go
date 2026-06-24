@@ -702,7 +702,8 @@ func main() {
 
 	completer := &tabCompleter{builtins: completions}
 
-	rl, err := readline.NewEx(&readline.Config{
+	var err error
+	rl, err = readline.NewEx(&readline.Config{
 		Prompt:       "$ ",
 		AutoComplete: completer,
 	})
