@@ -706,6 +706,7 @@ func main() {
 
 		if strings.TrimSpace(input) != "" {
 			shellHistory = append(shellHistory, input)
+			rl.SaveHistory(input)
 		}
 
 		parts := parseArgs(input)
