@@ -272,6 +272,8 @@ var jobList []*job
 
 var completionSpecs = map[string]string{}
 
+var rl *readline.Instance
+
 var shellHistory []string
 
 func findInPath(command string) string {
@@ -452,6 +454,21 @@ func runBuiltin(command string, args []string, r redirect) {
 		jobList = remaining
 
 	case "history":
+		if len(args) >= 2 && args[0] == "-r" {
+			data, err := os.ReadFile(args[1])
+			if err != nil {
+				fmt.Fprintln(errOut, err)
+				return
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line != "" {
+					shellHistory = append(shellHistory, line)
+					rl.SaveHistory(line)
+				}
+			}
+			return
+		}
 		start := 0
 		if len(args) > 0 {
 			if n, err := strconv.Atoi(args[0]); err == nil && n < len(shellHistory) {
