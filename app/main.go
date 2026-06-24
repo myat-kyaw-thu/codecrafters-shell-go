@@ -380,6 +380,8 @@ func runBuiltin(command string, args []string, r redirect) {
 			marker := " "
 			if j.id == jobCounter-1 {
 				marker = "+"
+			} else if j.id == jobCounter-2 {
+				marker = "-"
 			}
 			fmt.Fprintf(out, "[%d]%s  %-24s%s\n", j.id, marker, j.status, j.command)
 		}
